@@ -133,7 +133,8 @@ modify the input to the sail game
 	mkdir "${REPO}"
 	pushd "${REPO}"
 
-	git init -b main
+	git init
+	git checkout -b main
 	git config advice.detachedHead false
 
 	mkdir -p nodes
