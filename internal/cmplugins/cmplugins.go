@@ -21,7 +21,7 @@ type ChangeManagementHooks struct {
 // GetChangeManagementHooks initializes and registers change management hooks specified in ChangeManagementHooksConfig
 // if there is no a hook configuration, stub function that does nothing is registered instead
 func GetChangeManagementHooks(conf ChangeManagementHooksConfig) (*ChangeManagementHooks, error) {
-	logger := log.New(os.Stdout, "[apply] ", log.Lshortfile)
+	logger := log.New(os.Stdout, "[cmplugins] ", log.Lshortfile)
 
 	hooks := new(ChangeManagementHooks)
 
