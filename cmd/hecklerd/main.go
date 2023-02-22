@@ -30,6 +30,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/Masterminds/sprig"
 	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/braintree/heckler/internal/cmplugins"
 	"github.com/braintree/heckler/internal/gitutil"
 	"github.com/braintree/heckler/internal/heckler"
 	"github.com/braintree/heckler/internal/hecklerpb"
@@ -192,45 +193,46 @@ type IgnoredResources struct {
 }
 
 type HecklerdConf struct {
-	AdminOwners                []string              `yaml:"admin_owners"`
-	ApplySetOrder              []string              `yaml:"apply_set_order"`
-	ApplySetSleepSeconds       int                   `yaml:"apply_set_sleep_seconds"`
-	AutoCloseIssues            bool                  `yaml:"auto_close_issues"`
-	AutoTagCronSchedule        string                `yaml:"auto_tag_cron_schedule"`
-	EnvPrefix                  string                `yaml:"env_prefix"`
-	GitHubAppEmail             string                `yaml:"github_app_email"`
-	GitHubAppId                int64                 `yaml:"github_app_id"`
-	GitHubAppInstallId         int64                 `yaml:"github_app_install_id"`
-	GitHubAppSlug              string                `yaml:"github_app_slug"`
-	GitHubDisableNotifications bool                  `yaml:"github_disable_notifications"`
-	GitHubDomain               string                `yaml:"github_domain"`
-	GitHubHttpProxy            string                `yaml:"github_http_proxy"`
-	GitHubPrivateKeyPath       string                `yaml:"github_private_key_path"`
-	GitServerMaxClients        int                   `yaml:"git_server_max_clients"`
-	GroupedNoopDir             string                `yaml:"grouped_noop_dir"`
-	IgnoredResources           []IgnoredResources    `yaml:"ignored_resources"`
-	LockMessage                string                `yaml:"lock_message"`
-	LoopApprovalSleepSeconds   int                   `yaml:"loop_approval_sleep_seconds"`
-	LoopCleanSleepSeconds      int                   `yaml:"loop_clean_sleep_seconds"`
-	LoopMilestoneSleepSeconds  int                   `yaml:"loop_milestone_sleep_seconds"`
-	LoopNoopSleepSeconds       int                   `yaml:"loop_noop_sleep_seconds"`
-	ManualMode                 bool                  `yaml:"manual_mode"`
-	MaxNodeThresholds          NodeThresholds        `yaml:"max_node_thresholds"`
-	ModulesPaths               []string              `yaml:"module_paths"`
-	NodeSets                   map[string]NodeSetCfg `yaml:"node_sets"`
-	Timezone                   string                `yaml:"timezone"`
-	HoundWait                  string                `yaml:"hound_wait"`
-	HoundCronSchedule          string                `yaml:"hound_cron_schedule"`
-	ApplyCronSchedule          string                `yaml:"apply_cron_schedule"`
-	NoopDir                    string                `yaml:"noop_dir"`
-	Repo                       string                `yaml:"repo"`
-	RepoBranch                 string                `yaml:"repo_branch"`
-	RepoOwner                  string                `yaml:"repo_owner"`
-	ServedRepo                 string                `yaml:"served_repo"`
-	SlackAnnounceChannels      []SlackChannelCfg     `yaml:"slack_announce_channels"`
-	SlackPrivateConfPath       string                `yaml:"slack_private_conf_path"`
-	StateDir                   string                `yaml:"state_dir"`
-	WorkRepo                   string                `yaml:"work_repo"`
+	AdminOwners                []string                              `yaml:"admin_owners"`
+	ApplySetOrder              []string                              `yaml:"apply_set_order"`
+	ApplySetSleepSeconds       int                                   `yaml:"apply_set_sleep_seconds"`
+	AutoCloseIssues            bool                                  `yaml:"auto_close_issues"`
+	AutoTagCronSchedule        string                                `yaml:"auto_tag_cron_schedule"`
+	EnvPrefix                  string                                `yaml:"env_prefix"`
+	GitHubAppEmail             string                                `yaml:"github_app_email"`
+	GitHubAppId                int64                                 `yaml:"github_app_id"`
+	GitHubAppInstallId         int64                                 `yaml:"github_app_install_id"`
+	GitHubAppSlug              string                                `yaml:"github_app_slug"`
+	GitHubDisableNotifications bool                                  `yaml:"github_disable_notifications"`
+	GitHubDomain               string                                `yaml:"github_domain"`
+	GitHubHttpProxy            string                                `yaml:"github_http_proxy"`
+	GitHubPrivateKeyPath       string                                `yaml:"github_private_key_path"`
+	GitServerMaxClients        int                                   `yaml:"git_server_max_clients"`
+	GroupedNoopDir             string                                `yaml:"grouped_noop_dir"`
+	IgnoredResources           []IgnoredResources                    `yaml:"ignored_resources"`
+	LockMessage                string                                `yaml:"lock_message"`
+	LoopApprovalSleepSeconds   int                                   `yaml:"loop_approval_sleep_seconds"`
+	LoopCleanSleepSeconds      int                                   `yaml:"loop_clean_sleep_seconds"`
+	LoopMilestoneSleepSeconds  int                                   `yaml:"loop_milestone_sleep_seconds"`
+	LoopNoopSleepSeconds       int                                   `yaml:"loop_noop_sleep_seconds"`
+	ManualMode                 bool                                  `yaml:"manual_mode"`
+	MaxNodeThresholds          NodeThresholds                        `yaml:"max_node_thresholds"`
+	ModulesPaths               []string                              `yaml:"module_paths"`
+	NodeSets                   map[string]NodeSetCfg                 `yaml:"node_sets"`
+	Timezone                   string                                `yaml:"timezone"`
+	HoundWait                  string                                `yaml:"hound_wait"`
+	HoundCronSchedule          string                                `yaml:"hound_cron_schedule"`
+	ApplyCronSchedule          string                                `yaml:"apply_cron_schedule"`
+	NoopDir                    string                                `yaml:"noop_dir"`
+	Repo                       string                                `yaml:"repo"`
+	RepoBranch                 string                                `yaml:"repo_branch"`
+	RepoOwner                  string                                `yaml:"repo_owner"`
+	ServedRepo                 string                                `yaml:"served_repo"`
+	SlackAnnounceChannels      []SlackChannelCfg                     `yaml:"slack_announce_channels"`
+	SlackPrivateConfPath       string                                `yaml:"slack_private_conf_path"`
+	StateDir                   string                                `yaml:"state_dir"`
+	WorkRepo                   string                                `yaml:"work_repo"`
+	ChangeManagementHooks      cmplugins.ChangeManagementHooksConfig `yaml:"change_management_hooks"`
 }
 
 type SlackConf struct {
@@ -2818,7 +2820,7 @@ func greatestTagApproved(nextTags []string, priorTag string, conf *HecklerdConf,
 //       If yes
 //         Apply new tag across all nodes
 //   If no, do nothing
-func apply(noopLock *sync.Mutex, applySem chan int, conf *HecklerdConf, repo *git.Repository, templates *template.Template) {
+func apply(noopLock *sync.Mutex, applySem chan int, conf *HecklerdConf, repo *git.Repository, templates *template.Template, cmHooks *cmplugins.ChangeManagementHooks) {
 	var err error
 	var ns *NodeSet
 	var perApply *NodeSet
@@ -2831,6 +2833,18 @@ func apply(noopLock *sync.Mutex, applySem chan int, conf *HecklerdConf, repo *gi
 		logger.Printf("apply run already in progress, skipping")
 		return
 	}
+
+	// execute deployment moratorium hook
+	isMoratorium, err := cmHooks.IsDeploymentMoratorium()
+	if err != nil {
+		logger.Printf("Error: getting moratorium status")
+		return
+	}
+	if isMoratorium {
+		logger.Printf("Moratorium is in place, skipping apply cicle")
+		return
+	}
+
 	applySetSleep := (time.Duration(conf.ApplySetSleepSeconds) * time.Second)
 	noopLock.Lock()
 	defer noopLock.Unlock()
@@ -5165,6 +5179,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	cmHooks, err := cmplugins.GetChangeManagementHooks(conf.ChangeManagementHooks)
+	if err != nil {
+		logger.Println("Error getting change management hooks")
+		os.Exit(1)
+	}
+
 	// Ensure we have a valid timezone
 	_, err = time.LoadLocation(conf.Timezone)
 	if err != nil {
@@ -5351,7 +5371,7 @@ func main() {
 			hecklerdCron.AddFunc(
 				conf.ApplyCronSchedule,
 				func() {
-					apply(noopLock, applySem, conf, repo, templates)
+					apply(noopLock, applySem, conf, repo, templates, cmHooks)
 				},
 			)
 		}
