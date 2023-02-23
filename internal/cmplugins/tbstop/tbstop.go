@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
+	"github.com/braintree/heckler/internal/cmplugins/common"
 	"gopkg.in/yaml.v3"
 )
 
@@ -79,31 +78,16 @@ func InitTBStop() (*TBStop, error) {
 
 // getTBStopConfig reads tbstop configuration
 func getTBStopConfig() (*TBStopConfig, error) {
-	var tbstopConfPath string
-	if _, err := os.Stat("/etc/hecklerd/tbstop_conf.yaml"); err == nil {
-		tbstopConfPath = "/etc/hecklerd/tbstop_conf.yaml"
-	} else if _, err := os.Stat("tbstop_conf.yaml"); err == nil {
-		tbstopConfPath = "tbstop_conf.yaml"
-	} else {
-		return nil, fmt.Errorf("unable to load tbstop_conf.yaml from /etc/hecklerd or `.`: %w", err)
-	}
-
-	file, err := os.Open(tbstopConfPath)
+	data, err := common.ReadConfig("tbstop_conf.yaml")
 	if err != nil {
-		return nil, fmt.Errorf("unable to open tbstop_conf.yaml: %w", err)
-	}
-	defer file.Close()
-
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read tbstop_conf.yaml: %w", err)
+		return nil, fmt.Errorf("cannot read config: %w", err)
 	}
 
 	conf := new(TBStopConfig)
 
 	err = yaml.Unmarshal([]byte(data), conf)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal tbstop_conf.yaml: %w", err)
+		return nil, fmt.Errorf("cannot unmarshal config: %w", err)
 	}
 
 	return conf, nil

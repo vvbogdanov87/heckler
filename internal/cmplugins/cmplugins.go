@@ -5,17 +5,23 @@ import (
 	"log"
 	"os"
 
+	"github.com/braintree/heckler/internal/cmplugins/gsnow"
 	"github.com/braintree/heckler/internal/cmplugins/tbstop"
 )
 
 type ChangeManagementHooksConfig struct {
 	DeploymentMoratorium string `yaml:"deployment_moratorium"`
+	ChangeManagement     string `yaml:"change_management"`
 }
 
 type DeploymentMoratorium func() (bool, error)
+type CreateTicket func() (string, error)
+type CloseTicket func(string, string) error
 
 type ChangeManagementHooks struct {
 	IsDeploymentMoratorium DeploymentMoratorium
+	CMCreateTicket         CreateTicket
+	CMCloseTicket          CloseTicket
 }
 
 // GetChangeManagementHooks initializes and registers change management hooks specified in ChangeManagementHooksConfig
@@ -36,6 +42,21 @@ func GetChangeManagementHooks(conf ChangeManagementHooksConfig) (*ChangeManageme
 	default:
 		logger.Printf("DeploymentMoratorium hook is not configured")
 		hooks.IsDeploymentMoratorium = func() (bool, error) { return false, nil }
+	}
+
+	switch conf.ChangeManagement {
+	case "gsnow":
+		gsnow, err := gsnow.InitGSnow()
+		if err != nil {
+			return nil, fmt.Errorf("initializing gsnow hook: %w", err)
+		}
+		hooks.CMCreateTicket = gsnow.CMCreateTicket
+		hooks.CMCloseTicket = gsnow.CMCloseTicket
+		logger.Printf("gsnow Change Management hook is registered")
+	default:
+		logger.Printf("Change Management hooks are not configured")
+		hooks.CMCreateTicket = func() (string, error) { return "", nil }
+		hooks.CMCloseTicket = func(string, string) error { return nil }
 	}
 
 	return hooks, nil
